@@ -35,8 +35,9 @@ export default function Page() {
   }, []);
 
   return (
-    <main
-      data-lk-theme="default"
+    <div className="flex flex-col h-full bg-neutral-100">
+      <main
+        data-lk-theme="default"
       className="h-full grid content-center bg-[var(--lk-bg)]"
     >
       <LiveKitRoom
@@ -58,8 +59,31 @@ export default function Page() {
         />
         <RoomAudioRenderer />
         <NoAgentNotification state={agentState} />
-      </LiveKitRoom>
-    </main>
+        </LiveKitRoom>
+      </main>
+      <footer className="hidden md:flex md:items-center md:gap-2 md:justify-end font-mono uppercase text-right pt-1 pb-2 px-8 text-xs text-gray-600 w-full md:mx-auto">
+        Built with
+        on
+        <a
+          href="https://github.com/livekit/agents"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          LiveKit Agents
+        </a>{" "}
+        •
+        <a
+          href="https://github.com/livekit-examples/realtime-playground"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline inline-flex items-center gap-1"
+        >
+          View source on GitHub
+        </a>
+        • © 2024 LiveKit
+      </footer>
+    </div>
   );
 }
 

@@ -3,8 +3,13 @@ livekit-plugins-openai
 livekit-plugins-deepgram
 livekit-plugins-silero
 livekit-plugins-cartesia
+livekit-plugins-anthropic
+livekit-api
 python-dotenv
+aiohttp
 chromadb
+faiss-cpu
 llama-index
 llama-index-vector-stores-chroma
-aiohttp
+llama-index-vector-stores-faiss
+llama-index-tools-tavily-research

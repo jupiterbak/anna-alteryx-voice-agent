@@ -3,7 +3,6 @@ import asyncio
 import platform
 import datetime
 import logging
-from typing import Literal
 
 from livekit.agents import JobContext, WorkerOptions, cli, JobProcess
 from livekit.agents.llm import (
@@ -11,50 +10,25 @@ from livekit.agents.llm import (
     ChatMessage,
 )
 from livekit.agents.voice_assistant import VoiceAssistant
-from livekit.plugins import deepgram, silero, cartesia, openai, anthropic
+from livekit.plugins import deepgram, silero, cartesia, openai
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.pipeline import VoicePipelineAgent
+
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.core.indices.empty import EmptyIndex
+
 from dotenv import load_dotenv
 
-from llama_index.core import VectorStoreIndex, Settings, StorageContext, load_index_from_storage
-from llama_index.llms.openai import OpenAI
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from llama_index.vector_stores.faiss import FaissVectorStore
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.core.retrievers import VectorIndexRetriever
-from llama_index.core.query_engine import RetrieverQueryEngine
-import chromadb
-import faiss
-
-# Constants
-OPENAI_MODEL = "text-embedding-3-small"
-JSON_FILE = os.path.join("rag", "raw_data", "alteryx_docs.json")
-CHROMA_COLLECTION_NAME = "alteryx_docs"
-CHROMA_PERSIST_DIR = os.path.join("rag", "vectorDB", "chromaDB")
-FAISS_PERSIST_DIR = os.path.join("rag", "vectorDB", "faiss")
-VECTOR_DB_TO_USE: Literal["faiss", "chroma"] = "chroma"
-EMBEDDINGS_DIMENSION = 1536
-DG_MODEL = "nova-2-general"
+from rag.corrective_web_search_workflow import CorrectiveRAGWorkflow
+from rag.test_relevance_workflow import TestRelevanceWorkflow
 
 load_dotenv()
 
-logger = logging.getLogger("rag-assistant")
+logger = logging.getLogger("web-search-assistant")
 
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
-
-def get_vector_store(db_type: Literal["faiss", "chroma"]):
-    if db_type == "faiss":
-        faiss.IndexFlatL2(EMBEDDINGS_DIMENSION)  # Initialize FAISS index
-        return FaissVectorStore.from_persist_dir(FAISS_PERSIST_DIR)
-    elif db_type == "chroma":
-        chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
-        chroma_collection = chroma_client.get_or_create_collection(CHROMA_COLLECTION_NAME)
-        return ChromaVectorStore(chroma_collection=chroma_collection)
-    else:
-        raise ValueError(f"Unsupported vector store: {db_type}")
 
 def read_workflow_file(file_path):
     try:
@@ -64,45 +38,42 @@ def read_workflow_file(file_path):
         logger.error(f"Error reading workflow file: {e}")
         return None
 
-def setup_query_engine(vector_store, embed_model):
-    if VECTOR_DB_TO_USE == "faiss":
-        storage_context = StorageContext.from_defaults(
-            vector_store=vector_store, persist_dir=FAISS_PERSIST_DIR
-        )
-        index = load_index_from_storage(storage_context=storage_context)  
-    else:
-        index = VectorStoreIndex.from_vector_store(vector_store, embed_model=embed_model)
-    retriever = VectorIndexRetriever(index=index, similarity_top_k=3)
-    return RetrieverQueryEngine(retriever=retriever)
-
 async def entrypoint(ctx: JobContext):
     # Read the workflow file
     workflow_path = r"C:\Users\jupiter.bakakeu\OneDrive - alteryx.com\Documents\05_Workspace\02_Special_Projects\2024-11-TechTalk-Alteryx\Workflows\Office_Finance_KPI_YTD.yxmd"
-    workflow_content = "" #read_workflow_file(workflow_path)
-    #logger.log(f"Workflow content: {workflow_content}")
-
-    # RAG 
-    # embed_model = OpenAIEmbedding(model=OPENAI_MODEL, dimensions=EMBEDDINGS_DIMENSION)
-    # vector_store = get_vector_store(VECTOR_DB_TO_USE)
-    # query_engine = setup_query_engine(vector_store, embed_model)
+    workflow_content = read_workflow_file(workflow_path)
+    logger.info(f"Workflow content: {workflow_content}")
+    
+    # RAG from the web
+    correct_rag_workflow = CorrectiveRAGWorkflow()
+    test_relevance_workflow = TestRelevanceWorkflow()
 
     async def _enrich_with_rag(agent: VoicePipelineAgent, chat_ctx: llm.ChatContext):
-        print("enriching with RAG")
-        # # locate the last user message and use it to query the RAG model
-        # # to get the most relevant paragraph
-        # # then provide that as additional context to the LLM
-        # user_msg = chat_ctx.messages[-1]         
-        # result = query_engine.retrieve(user_msg.content)
+        # locate the last user message and use it to query the RAG model
+        # to get the most relevant paragraph
+        # then provide that as additional context to the LLM
+        user_msg = chat_ctx.messages[-1]
+        logger.info(f"User message: {user_msg.content}")
+        # # Check if user is asking a question
+        # testing_result = await test_relevance_workflow.run(
+        #     user_transcript=user_msg.content,
+        #     openai_apikey=os.getenv("OPENAI_API_KEY")
+        # )
 
-        # if len(result) > 0:
-        #     logger.info(f"enriching with RAG: {result[0].metadata['url']}")
-        #     rag_msg = llm.ChatMessage.create(
-        #         text="Context:\n" + result[0].text,
-        #         role="assistant",
+        # if "yes" in testing_result:
+        #     result = await correct_rag_workflow.run(
+        #         query_str=user_msg.content,
+        #         tavily_ai_apikey=os.getenv("TAVILY_API_KEY"),
         #     )
-        #     # replace last message with RAG, and append user message at the end
-        #     # chat_ctx.messages[-1] = rag_msg
-        #     #chat_ctx.messages.append(rag_msg)
+        #     if result is not None:
+        #         logger.info(f"enriching with RAG: {result}")
+        #         # rag_msg = llm.ChatMessage.create(
+        #         #     text="Context:\n" + result.text,
+        #         #     role="assistant",
+        #         # )
+        #         # replace last message with RAG, and append user message at the end
+        #         # chat_ctx.messages[-1] = rag_msg
+        #         #chat_ctx.messages.append(rag_msg)
     
     initial_ctx = ChatContext(
         messages=[
@@ -159,10 +130,11 @@ We are currently working on the following Alteryx Designer workflow. Understand 
     assistant = VoiceAssistant(
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(),
-        llm=anthropic.LLM(model="claude-3-5-sonnet-20241022"), #openai.LLM(model="gpt-4o"),
+        llm=openai.LLM(model="gpt-4o"),
         tts=openai.TTS(voice="alloy"), #cartesia.TTS(voice="248be419-c632-4f23-adf1-5324ed7dbf1d"), #
         chat_ctx=initial_ctx,
         before_llm_cb=_enrich_with_rag,
+
     )
 
     await ctx.connect()
