@@ -39,14 +39,14 @@ export default function Page() {
       <main
         data-lk-theme="default"
       className="h-full grid content-center bg-[var(--lk-bg)]"
-    >
-      <LiveKitRoom
-        token={connectionDetails?.participantToken}
-        serverUrl={connectionDetails?.serverUrl}
-        connect={connectionDetails !== undefined}
-        audio={true}
-        video={false}
-        onMediaDeviceFailure={onDeviceFailure}
+      >
+        <LiveKitRoom
+          token={connectionDetails?.participantToken}
+          serverUrl={connectionDetails?.serverUrl}
+          connect={connectionDetails !== undefined}
+          audio={true}
+          video={false}
+          onMediaDeviceFailure={onDeviceFailure}
         onDisconnected={() => {
           updateConnectionDetails(undefined);
         }}
@@ -64,7 +64,6 @@ export default function Page() {
       <footer className="hidden md:flex md:items-center md:gap-2 md:justify-end font-mono uppercase text-right pt-1 pb-2 px-8 text-xs text-gray-600 w-full md:mx-auto">
         Built by Jupiter Bakakeu
         {" "}
-
         © 2024 Alteryx
       </footer>
     </div>

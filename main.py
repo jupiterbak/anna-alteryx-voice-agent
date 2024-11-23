@@ -159,7 +159,7 @@ We are currently working on the following Alteryx Designer workflow. Understand 
     assistant = VoiceAssistant(
         vad=ctx.proc.userdata["vad"],
         stt=deepgram.STT(),
-        llm=anthropic.LLM(model="claude-3-5-sonnet-20241022"), #openai.LLM(model="gpt-4o"),
+        llm=openai.LLM(model="gpt-4o"), # anthropic.LLM(model="claude-3-5-sonnet-20241022"), 
         tts=openai.TTS(voice="alloy"), #cartesia.TTS(voice="248be419-c632-4f23-adf1-5324ed7dbf1d"), #
         chat_ctx=initial_ctx,
         before_llm_cb=_enrich_with_rag,
